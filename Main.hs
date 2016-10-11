@@ -25,6 +25,14 @@ evalExpr env (AssignExpr OpAssign (LVar var) expr) = do
     e <- evalExpr env expr
     setVar var e
 
+evalExpr env (ArrayLit []) = return (Array [])
+evalExpr env (ArrayLit l) = evalArray env l (Array [])
+
+evalExpr env (ListExpr []) = return Nil
+evalExpr env (ListExpr (l:ls)) = do
+    					evalExpr env l >> evalExpr env (ListExpr ls)
+
+
 
 evalStmt :: StateT -> Statement -> StateTransformer Value
 evalStmt env (BlockStmt []) = return Nil
@@ -69,11 +77,13 @@ evalStmt env (DoWhileStmt c1 cond) = do
 								evalStmt env (DoWhileStmt c1 cond)
 							else return Nil
 
+
+
 evalStmt env (ReturnStmt i) = case i of
         Nothing -> return (Return Nil)
-        Just val -> do
-            v <- evalExpr env val
-            return (Return v)
+        Just v -> do
+            v1 <- evalExpr env v
+            return (Return v1)
 
 evalStmt env (BreakStmt i) = return Break
 evalStmt env (ContinueStmt i) = return Continue
@@ -134,6 +144,12 @@ varDecl env (VarDecl (Id id) maybeExpr) = do
 
 setVar :: String -> Value -> StateTransformer Value
 setVar var val = ST $ \s -> (val, insert var val s)
+
+evalArray :: StateT -> [Expression] -> Value -> StateTransformer Value
+evalArray env [] (Array l) = return (Array l)
+evalArray env (x:xs) (Array l) = do
+    v1 <- evalExpr env x
+    evalArray env xs (Array (l++[v1]))
 
 --
 -- Types and boilerplate

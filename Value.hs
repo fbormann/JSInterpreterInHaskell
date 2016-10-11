@@ -37,6 +37,13 @@ instance Show Value where
   show Continue = "continue"
   show (Return n) = show n
   show (Double d) = show d
+  show (Array a) = "[ " ++ (showArray (Array a)) ++ " ]"
+
+showArray (Array []) = ""
+showArray (Array [x]) = show x
+showArray (Array (x:xs)) = (show x) ++ ", " ++ showArray (Array xs)
+
+
   
 -- This function could be replaced by (unwords.map show). The unwords
 -- function takes a list of String values and uses them to build a 
