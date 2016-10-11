@@ -1,6 +1,5 @@
 var x = 1, y = 10;
-
-
+var z = [ x , y, 2];
 if (x < y){
 break;
 x = 100;
@@ -15,4 +14,4 @@ while (x < 10){
   }
 }
 
-return x
+return z
