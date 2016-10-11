@@ -1,7 +1,16 @@
-var x = 0, y = 10;
-x + y;
-var w = 20;
-var z = w + y;
-for (i = 0; i < w; i++){
-	w += 1;
+var x = 1, y = 10;
+
+
+if (x < y){
+break;
+x = 100;
+}
+
+while (x < 10){
+  y = y + 1;
+  x = x + 1;
+  break;
+  while (y < 20){
+  	x = 1000;
+  }
 }

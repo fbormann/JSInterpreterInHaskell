@@ -14,6 +14,7 @@ evalExpr :: StateT -> Expression -> StateTransformer Value
 evalExpr env (VarRef (Id id)) = stateLookup env id
 evalExpr env (IntLit int) = return $ Int int
 evalExpr env (BoolLit bool) = return $ Bool bool
+evalExpr env (StringLit str) = return $ String str
 evalExpr env (InfixExpr op expr1 expr2) = do
     v1 <- evalExpr env expr1
     v2 <- evalExpr env expr2
@@ -23,12 +24,59 @@ evalExpr env (AssignExpr OpAssign (LVar var) expr) = do
     e <- evalExpr env expr
     setVar var e
 
+
 evalStmt :: StateT -> Statement -> StateTransformer Value
+evalStmt env (BlockStmt []) = return Nil
+evalStmt env (BlockStmt (x:xs) ) = do
+					v1 <- evalStmt env x
+					if (v1 == (Break) || v1 == (Continue)) then
+						return v1
+					else
+						evalStmt env (BlockStmt xs)
+evalStmt env (IfStmt cond c1 c2) = do
+					v1 <- evalExpr env cond
+					if (v1 == (Bool True)) then
+						evalStmt env c1
+					else if (v1 == (Bool False)) then
+						evalStmt env c2
+					else return Nil
+evalStmt env (IfSingleStmt cond c1) = do
+					v1 <- evalExpr env cond
+					if (v1 == (Bool True)) then
+						evalStmt env c1
+					else return Nil
+evalStmt env (WhileStmt cond c1) = do
+					v1 <- evalExpr env cond
+					if (v1 == (Bool True)) then
+						do
+							v2 <- evalStmt env c1
+							if (v2 == (Break)) then
+								return Nil
+							else
+								evalStmt env (WhileStmt cond c1)
+					else 
+						return Nil
+					
+evalStmt env (DoWhileStmt c1 cond) = do
+					v1 <- evalStmt env c1
+					if (v1 == (Break)) then
+						return Nil
+					else
+						do
+							v2 <- evalExpr env cond
+							if (v2 == (Bool True)) then
+								evalStmt env (DoWhileStmt c1 cond)
+							else return Nil
+
+
+evalStmt env (BreakStmt i) = return Break
+evalStmt env (ContinueStmt i) = return Continue
 evalStmt env EmptyStmt = return Nil
 evalStmt env (VarDeclStmt []) = return Nil
 evalStmt env (VarDeclStmt (decl:ds)) =
     varDecl env decl >> evalStmt env (VarDeclStmt ds)
 evalStmt env (ExprStmt expr) = evalExpr env expr
+
 
 -- Do not touch this one :)
 evaluate :: StateT -> [Statement] -> StateTransformer Value
@@ -52,6 +100,7 @@ infixOp env OpGEq  (Int  v1) (Int  v2) = return $ Bool $ v1 >= v2
 infixOp env OpEq   (Int  v1) (Int  v2) = return $ Bool $ v1 == v2
 infixOp env OpEq   (Bool v1) (Bool v2) = return $ Bool $ v1 == v2
 infixOp env OpNEq  (Bool v1) (Bool v2) = return $ Bool $ v1 /= v2
+infixOp env OpNEq  (Int v1) (Int v2) = return $ Bool $ v1 /= v2
 infixOp env OpLAnd (Bool v1) (Bool v2) = return $ Bool $ v1 && v2
 infixOp env OpLOr  (Bool v1) (Bool v2) = return $ Bool $ v1 || v2
 

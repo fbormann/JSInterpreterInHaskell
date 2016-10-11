@@ -4,14 +4,20 @@ data Value = Bool Bool
     | Int Int
     | String String
     | Var String
-    | Function String
-    | Comments String
-    | For String Bool
     | Nil
+    | Continue
+    | Break
 
 --
 -- Pretty Printer
 --
+instance Eq Value where
+ (Bool b1) == (Bool b2) = b1 == b2
+ (Continue) == (Continue) = True
+ (Break) == (Break) = True
+ _ == (Continue) = False
+ _ == (Break) = False
+
 
 instance Show Value where 
   show (Bool True) = "true"
@@ -20,6 +26,8 @@ instance Show Value where
   show (String str) = "\"" ++ str ++ "\""
   show (Var name) = name
   show Nil = "undefined"
+  show Break = "break"
+  show Continue = "continue"
   
 -- This function could be replaced by (unwords.map show). The unwords
 -- function takes a list of String values and uses them to build a 
