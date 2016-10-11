@@ -11,6 +11,7 @@ import Value
 --
 
 evalExpr :: StateT -> Expression -> StateTransformer Value
+evalExpr env (NumLit d) = return $ Double d
 evalExpr env (VarRef (Id id)) = stateLookup env id
 evalExpr env (IntLit int) = return $ Int int
 evalExpr env (BoolLit bool) = return $ Bool bool
@@ -68,6 +69,11 @@ evalStmt env (DoWhileStmt c1 cond) = do
 								evalStmt env (DoWhileStmt c1 cond)
 							else return Nil
 
+evalStmt env (ReturnStmt i) = case i of
+        Nothing -> return (Return Nil)
+        Just val -> do
+            v <- evalExpr env val
+            return (Return v)
 
 evalStmt env (BreakStmt i) = return Break
 evalStmt env (ContinueStmt i) = return Continue
