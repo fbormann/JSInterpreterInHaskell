@@ -41,9 +41,9 @@ evalExpr env (ListExpr []) = return Nil
 evalExpr env (ListExpr (l:ls)) = do
                         evalExpr env l >> evalExpr env (ListExpr ls)
 evalExpr env (UnaryAssignExpr op (LVar var)) = do
-    stateLookup env var -- return error if the variable doesn`t exist
-    e <- evalExpr env var
-    unaryAssignOp env op value
+    v <- stateLookup env var -- return error if the variable doesn`t exist
+    e <- unaryAssignOp env op v
+    setVar var e
 
 
 
