@@ -30,7 +30,36 @@ evalExpr env (ArrayLit l) = evalArray env l (Array [])
 
 evalExpr env (ListExpr []) = return Nil
 evalExpr env (ListExpr (l:ls)) = do
-    					evalExpr env l >> evalExpr env (ListExpr ls)
+    					evalExpr env l 
+					evalExpr env (ListExpr ls)
+-- entender melhor
+evalExpr env (DotRef expr (Id id)) = do
+    						array <- evalExpr env expr
+    						case array of
+        						Array l -> do
+            							case id of
+                							"len" -> return (myLength 0 l)
+                							"head" -> return (head l)
+                							"tail" -> return (Array (tail l))
+                							_ -> error $ "Function not defined"
+
+evalExpr env (BracketRef expr1 expr2) = do
+    						v1 <- evalExpr env expr1
+    						v2 <- evalExpr env expr2
+    						evalNthElement env v1 v2
+
+evalExpr env (PrefixExpr op expr) = do
+    					v <- evalExpr env expr
+    					prefixOp env op v
+
+evalExpr env (CondExpr expr1 expr2 expr3) = do
+    							v1 <- evalExpr env expr1
+    							if (v1 == (Bool True)) then
+								evalExpr env expr2
+							else if (v1 == (Bool False)) then
+								evalExpr env expr3
+							else
+								return Nil
 
 
 
@@ -85,6 +114,17 @@ evalStmt env (ReturnStmt i) = case i of
             v1 <- evalExpr env v
             return (Return v1)
 
+evalStmt env (SwitchStmt expr []) = return Nil
+evalStmt env (SwitchStmt expr (x:xs)) = case x of
+						(CaseClause expr1 c) -> do
+										v1 <- evalExpr env expr
+										v2 <- evalExpr env expr1
+										if (v1 == v2) then
+											evalStmt env (BlockStmt c)
+										else 
+											evalStmt env (SwitchStmt expr xs)
+						(CaseDefault c) -> evalStmt env (BlockStmt c)
+					
 evalStmt env (BreakStmt i) = return Break
 evalStmt env (ContinueStmt i) = return Continue
 evalStmt env EmptyStmt = return Nil
@@ -120,6 +160,22 @@ infixOp env OpNEq  (Int v1) (Int v2) = return $ Bool $ v1 /= v2
 infixOp env OpLAnd (Bool v1) (Bool v2) = return $ Bool $ v1 && v2
 infixOp env OpLOr  (Bool v1) (Bool v2) = return $ Bool $ v1 || v2
 
+prefixOp :: StateT-> PrefixOp -> Value -> StateTransformer Value
+prefixOp env PrefixLNot (Bool v) = return $ Bool $ not v
+prefixOp env PrefixMinus (Int v) = return $ Int $ (-v)
+prefixOp env PrefixMinus (Double v) = return $ Double $ (-v)
+prefixOp env PrefixPlus (Int v) = return $ Int v
+prefixOp env PrefixPlus (Double v) = return $ Double v
+
+unaryAssignOp :: StateT -> UnaryAssignOp -> Value -> StateTransformer Value
+unaryAssignOp env PostfixInc (Int v1) = return $ Int $ v1 + 1
+unaryAssignOp env PostfixInc (Double v1) = return $ Double $ v1 + 1
+unaryAssignOp env PostfixDec (Int v1) = return $ Int $ v1 - 1
+unaryAssignOp env PostfixDec (Double v1) = return $ Double $ v1 - 1
+unaryAssignOp env PrefixInc (Int v1) = return $ Int $ v1 + 1
+unaryAssignOp env PrefixInc (Double v1) = return $ Double $ v1 + 1
+unaryAssignOp env PrefixDec (Int v1) = return $ Int $ v1 - 1
+unaryAssignOp env PrefixDec (Double v1) = return $ Double $ v1 - 1
 --
 -- Environment and auxiliary functions
 --
@@ -150,6 +206,24 @@ evalArray env [] (Array l) = return (Array l)
 evalArray env (x:xs) (Array l) = do
     v1 <- evalExpr env x
     evalArray env xs (Array (l++[v1]))
+
+myLength :: Int -> [Value] -> Value
+myLength x [] = Int x
+myLength x (b:bs) = myLength (x+1) bs
+
+myHead :: [Value] -> Value
+myHead [] = Nil
+myHead (x:xs) = x
+
+myTail :: [Value] -> [Value]
+myTail [] = []
+myTail (x:xs) = xs
+
+evalNthElement :: StateT -> Value -> Value -> StateTransformer Value
+evalNthElement env (Array []) (Int n) = return Nil
+evalNthElement env (Array (x:xs)) (Int 0) = return x
+evalNthElement env (Array (x:xs)) (Int n) = do
+    evalNthElement env (Array xs) (Int (n-1))
 
 --
 -- Types and boilerplate
