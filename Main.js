@@ -27,4 +27,15 @@ default:
 
 t = -(w) + 100;
 
-return t;
+for (var s = 1; s < 3; s++){
+	t = 500;
+}
+
+function fat(x){
+	if(x<=1){
+		return 1;
+	}
+	return (fat(x-1))*x;
+}
+
+return fat(25);

@@ -13,6 +13,7 @@ data Value = Bool Bool
     | Double Double
     | Function Id [Id] [Statement]
     | Array [Value]
+    | GlobalVar
     deriving (Eq)
 
 --
