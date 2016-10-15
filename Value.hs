@@ -1,7 +1,6 @@
 module Value (Value (..)) where
--- Importar a definicao de id do syntax
+-- Import definition of Id from Syntax
 import Language.ECMAScript3.Syntax
-
 data Value = Bool Bool
     | Int Int
     | String String
@@ -14,7 +13,7 @@ data Value = Bool Bool
     | Function Id [Id] [Statement]
     | Array [Value]
     | GlobalVar
-    deriving (Eq)
+    deriving (Eq) -- so we don't have to implement an instance of Eq :)
 
 --
 -- Pretty Printer
@@ -39,11 +38,19 @@ instance Show Value where
   show (Return n) = show n
   show (Double d) = show d
   show (Array a) = "[ " ++ (showArray (Array a)) ++ " ]"
+  show (Function (Id id) args c) = "Function: " ++ id ++ " Arguments:" ++ showArgs args
+
+--
+-- Auxiliary functions
+--
 
 showArray (Array []) = ""
-showArray (Array [x]) = show x
-showArray (Array (x:xs)) = (show x) ++ ", " ++ showArray (Array xs)
+showArray (Array (x:xs)) | xs /= [] = (show x) ++ ", " ++ showArray (Array xs)
+			 | otherwise = show x
 
+showArgs [] = ""
+showArgs ((Id id):xs) | xs /= [] = show id ++ "; " ++ showArgs xs
+		      | otherwise = show id
 
   
 -- This function could be replaced by (unwords.map show). The unwords

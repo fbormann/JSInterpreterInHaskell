@@ -11,41 +11,76 @@ import Value
 --
 
 evalExpr :: StateT -> Expression -> StateTransformer Value
+-- NumLit
 evalExpr env (NumLit d) = return $ Double d
+-- VarRef
 evalExpr env (VarRef (Id id)) = stateLookup env id
+-- IntLit
 evalExpr env (IntLit int) = return $ Int int
+-- BoolLit
 evalExpr env (BoolLit bool) = return $ Bool bool
+-- StringLit
 evalExpr env (StringLit str) = return $ String str
+-- InfixExpr
 evalExpr env (InfixExpr op expr1 expr2) = do
     v1 <- evalExpr env expr1
     v2 <- evalExpr env expr2
-    infixOp env op v1 v2
-evalExpr env (AssignExpr OpAssign (LVar var) expr) = do
-    stateLookup env var -- crashes if the variable doesn't exist
-    e <- evalExpr env expr
-    setVar var e
+    case v1 of
+        (Return r1) -> case v2 of
+			(Return r2) -> infixOp env op r1 r2
+			_ -> infixOp env op r1 v2
+	_ -> case v2 of
+		(Return r2) -> infixOp env op v1 r2
+		_ -> infixOp env op v1 v2 
+		-- we need this specification 
+		-- in order to do recursive functions, for example
+-- AssignExpr
+evalExpr env (AssignExpr OpAssign var expr) = do
+    case var of
+        (LVar v) -> do -- x = something (x is already declared)
+            tent <- stateLookup env v
+            e <- evalExpr env expr
+            case tent of
+                GlobalVar -> createGlobalVar v e
+                _ -> setVar v e
+        (LBracket expr1 expr2) -> do -- x[n] = something (x is already declared)
+            case expr1 of
+                VarRef (Id id) -> do
+                    evaluedI <- stateLookup env id
+                    pos <- evalExpr env expr2
+                    e <- evalExpr env expr
+                    case evaluedI of
+                        Array l -> do
+                            newArray <- setVarArray (Array []) (Array l) pos e
+                            setVar id newArray
+                        _ -> error $ "Sorry, this variable is not an array"
+-- ArrayLit
 evalExpr env (ArrayLit []) = return (Array [])
 evalExpr env (ArrayLit l) = evalArray env l (Array [])
+-- ListExpr
 evalExpr env (ListExpr []) = return Nil
 evalExpr env (ListExpr (l:ls)) = do
-    evalExpr env l 
-    evalExpr env (ListExpr ls)
+    evalExpr env l >> evalExpr env (ListExpr ls)
+-- DotRef
 evalExpr env (DotRef expr (Id id)) = do
-    array <- evalExpr env expr
-    case array of
+    v1 <- evalExpr env expr
+    case v1 of
         Array l -> do
             case id of
                 "len" -> return (myLength 0 l)
                 "head" -> return (head l)
                 "tail" -> return (Array (tail l))
-                _ -> error $ "Function not defined"
-evalExpr env (BracketRef expr1 expr2) = do
+                _ -> error $ "Sorry, this function is not defined"
+-- BracketRef
+evalExpr env (BracketRef expr1 expr2) = do -- x[n]
     v1 <- evalExpr env expr1
     v2 <- evalExpr env expr2
     evalNthElement env v1 v2
+-- PrefixExpr
 evalExpr env (PrefixExpr op expr) = do
     v <- evalExpr env expr
     prefixOp env op v
+-- CondExpr
 evalExpr env (CondExpr expr1 expr2 expr3) = do
     v1 <- evalExpr env expr1
     if (v1 == (Bool True)) then
@@ -54,26 +89,44 @@ evalExpr env (CondExpr expr1 expr2 expr3) = do
 	evalExpr env expr3
     else
 	return Nil
-evalExpr env (UnaryAssignExpr inc (LVar var)) = do
-    case inc of
-	PrefixInc -> evalExpr env (AssignExpr OpAssign (LVar var) (InfixExpr OpAdd (VarRef (Id var)) (IntLit 1)))
-	PrefixDec -> evalExpr env (AssignExpr OpAssign (LVar var) (InfixExpr OpSub (VarRef (Id var)) (IntLit 1)))
-	PostfixInc -> evalExpr env (AssignExpr OpAssign (LVar var) (InfixExpr OpAdd (VarRef (Id var)) (IntLit 1)))
-	PostfixDec -> evalExpr env (AssignExpr OpAssign (LVar var) (InfixExpr OpSub (VarRef (Id var)) (IntLit 1)))
-evalExpr env (CallExpr name params) = do
-    case name of
+-- UnaryAssignExpr
+evalExpr env (UnaryAssignExpr i (LVar v)) = do
+    case i of
+	PrefixInc -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpAdd (VarRef (Id v)) (IntLit 1)))
+	PrefixDec -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpSub (VarRef (Id v)) (IntLit 1)))
+	PostfixInc -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpAdd (VarRef (Id v)) (IntLit 1)))
+	PostfixDec -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpSub (VarRef (Id v)) (IntLit 1)))
+-- check why this is not running ( ++ x[n] )
+--evalExpr env (UnaryAssignExpr inc (LBracket expr1 expr2) ) = do
+--    case expr1 of
+--        VarRef (Id id) -> do
+--            case inc of
+--		PrefixInc -> evalExpr env (AssignExpr OpAssign (LBracket VarRef (Id id) expr2) (InfixExpr OpAdd (VarRef (Id id)) (IntLit 1)))
+--		PrefixDec -> evalExpr env (AssignExpr OpAssign (LBracket VarRef (Id id) expr2) (InfixExpr OpSub (VarRef (Id id)) (IntLit 1)))
+--		PostfixInc -> evalExpr env (AssignExpr OpAssign (LBracket VarRef (Id id) expr2) (InfixExpr OpAdd (VarRef (Id id)) (IntLit 1)))
+--		PostfixDec -> evalExpr env (AssignExpr OpAssign (LBracket VarRef (Id id) expr2) (InfixExpr OpSub (VarRef (Id id)) (IntLit 1)))
+	    
+-- CallExpr	
+evalExpr env (CallExpr func params) = do
+    case func of
         DotRef expr (Id id) -> do
-            array <- evalExpr env expr
-            case array of
+            v1 <- evalExpr env expr
+            case v1 of
                 Array l -> do
-                    case id of
-                        "concat" -> myConcat env l params
-                        "len" -> return (myLength 0 l)
-                        "head" -> return (head l)
-                        "tail" -> return (Array (tail l))
-                        "equals" -> myEquals env l params
+		    if (id == "concat") then
+			myConcat env l params
+		    else if (id == "len") then
+			return (myLength 0 l)
+		    else if (id == "head") then
+			return (head l)
+		    else if (id == "tail") then
+			return (Array(tail l))
+		    else if (id == "equals") then
+			myEquals env l params
+		    else 
+			error $ "Sorry, this function is not defined"
         _ -> do
-            evaluedName <- evalExpr env name
+            evaluedName <- evalExpr env func
             case evaluedName of
                 Function id args stmt -> do
                     pushScope
@@ -82,7 +135,6 @@ evalExpr env (CallExpr name params) = do
                     popScope
                     case ret of
                         Return r -> return r
-                        Break -> error $ "break no lugar errado"
                         _ -> return Nil
 
 evalStmt :: StateT -> Statement -> StateTransformer Value
@@ -92,7 +144,9 @@ evalStmt env (BlockStmt (x:xs) ) = do
     if (v1 == (Break) || v1 == (Continue)) then
     	return v1
     else
-	evalStmt env (BlockStmt xs)
+	case v1 of
+	Return r1 -> return (Return r1)
+	_ -> evalStmt env (BlockStmt xs)
 evalStmt env (IfStmt cond c1 c2) = do
     v1 <- evalExpr env cond
     if (v1 == (Bool True)) then
@@ -112,19 +166,23 @@ evalStmt env (WhileStmt cond c1) = do
 	if (v2 == (Break)) then
 	    return Nil
 	else
-	    evalStmt env (WhileStmt cond c1)
+	    case v2 of
+	    Return r -> return (Return r)
+            _ -> evalStmt env (WhileStmt cond c1)
     else 
 	return Nil				
 evalStmt env (DoWhileStmt c1 cond) = do
     v1 <- evalStmt env c1
-    if (v1 == (Break)) then
-	return Nil
-    else do
-	v2 <- evalExpr env cond
-	if (v2 == (Bool True)) then
-	    evalStmt env (DoWhileStmt c1 cond)
-        else 
-            return Nil
+    case v1 of
+	Break -> return Nil
+	Return r -> return (Return r)
+	_ -> do
+		v2 <- evalExpr env cond
+		if (v2 == (Bool True)) then
+	    	    evalStmt env (DoWhileStmt c1 cond)
+        	else 
+            	    return Nil
+	
 evalStmt env (ReturnStmt i) = 
     case i of
         Nothing -> return (Return Nil)
@@ -330,6 +388,12 @@ myEqualsArray [] [] = True
 myEqualsArray x [] = False
 myEqualsArray [] y = False
 myEqualsArray (x:xs) (y:ys) = (x == y) && (myEqualsArray xs ys)
+
+setVarArray :: Value -> Value -> Value -> Value -> StateTransformer Value
+setVarArray (Array x) (Array []) (Int 0) e = return (Array (x ++ [e]))
+setVarArray (Array x) (Array []) (Int n) e = setVarArray (Array (x ++ [])) (Array []) (Int (n-1)) e
+setVarArray (Array x) (Array (l:ls)) (Int 0) e = return (Array (x ++ [e] ++ ls))
+setVarArray (Array x) (Array (l:ls)) (Int n) e = setVarArray (Array (x ++ [l])) (Array ls) (Int (n-1)) e
 --
 -- Types and boilerplate
 --
