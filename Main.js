@@ -1,22 +1,9 @@
-
-
-
-
-var items = [2,3,5,4,20,14,17,13];
-
-function mergeSort(items){
-
-    // Terminal case: 0 or 1 item arrays don't need sorting
-    if (items.length < 2) {
-        return items;
-    }
-
-    var middle = Math.floor(items.length / 2),
-        left    = items.slice(0, middle),
-        right   = items.slice(middle);
-
-    return merge(mergeSort(left), mergeSort(right));
-
+var i = 6;
+function fibonacci(x){
+	if(x == 2 || x == 1){
+		return 1;
+	}else{
+		return fibonacci(x-1)+fibonacci(x-2);
+	}
 }
-
-items2 = mergeSort(items);
+var w = fibonacci(i);
