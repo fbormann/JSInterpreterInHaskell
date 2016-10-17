@@ -1,11 +1,20 @@
-vetor = [5,2,3,6,7,3,5,6,4,2,559,8,7,4,1,24,5,4,7,26,89];
-for(var i = 0;i<vetor.len();i = i+1){
-	for(var j = 0;j<vetor.lent();j = j+1){
-		if(vetor[i]<vetor[j]){
-			aux = vetor[i];
-			vetor[i] = vetor[j];
-			vetor[j] = aux;
-		}
-	}
+
+
+
+var items = [2,3,5,4,20,14,17,13];
+
+function mergeSort(items){
+
+    // Terminal case: 0 or 1 item arrays don't need sorting
+    if (items.length < 2) {
+        return items;
+    }
+
+    var middle = Math.floor(items.length / 2),
+        left    = items.slice(0, middle),
+        right   = items.slice(middle);
+
+    return merge(mergeSort(left), mergeSort(right));
 }
-return vetor;
+
+items2 = mergeSort(items);

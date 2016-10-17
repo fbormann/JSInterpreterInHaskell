@@ -29,9 +29,9 @@ evalExpr env (InfixExpr op expr1 expr2) = do
         (Return r1) -> case v2 of
             (Return r2) -> infixOp env op r1 r2
             _ -> infixOp env op r1 v2
-    _ -> case v2 of
-        (Return r2) -> infixOp env op v1 r2
-        _ -> infixOp env op v1 v2 
+        _ -> case v2 of
+            (Return r2) -> infixOp env op v1 r2
+            _ -> infixOp env op v1 v2 
         -- we need this specification 
         -- in order to do recursive functions, for example
 -- AssignExpr
@@ -84,18 +84,18 @@ evalExpr env (PrefixExpr op expr) = do
 evalExpr env (CondExpr expr1 expr2 expr3) = do
     v1 <- evalExpr env expr1
     if (v1 == (Bool True)) then
-    evalExpr env expr2
+        evalExpr env expr2
     else if (v1 == (Bool False)) then
-    evalExpr env expr3
+        evalExpr env expr3
     else
-    return Nil
+        return Nil
 -- UnaryAssignExpr
 evalExpr env (UnaryAssignExpr i (LVar v)) = do
     case i of
-    PrefixInc -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpAdd (VarRef (Id v)) (IntLit 1)))
-    PrefixDec -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpSub (VarRef (Id v)) (IntLit 1)))
-    PostfixInc -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpAdd (VarRef (Id v)) (IntLit 1)))
-    PostfixDec -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpSub (VarRef (Id v)) (IntLit 1)))
+        PrefixInc -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpAdd (VarRef (Id v)) (IntLit 1)))
+        PrefixDec -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpSub (VarRef (Id v)) (IntLit 1)))
+        PostfixInc -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpAdd (VarRef (Id v)) (IntLit 1)))
+        PostfixDec -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpSub (VarRef (Id v)) (IntLit 1)))
 -- check why this is not running ( ++ x[n] )
 --evalExpr env (UnaryAssignExpr inc (LBracket expr1 expr2) ) = do
 --    case expr1 of
@@ -113,18 +113,18 @@ evalExpr env (CallExpr func params) = do
             v1 <- evalExpr env expr
             case v1 of
                 Array l -> do
-            if (id == "concat") then
-            myConcat env l params
-            else if (id == "len") then
-            return (myLength 0 l)
-            else if (id == "head") then
-            return (head l)
-            else if (id == "tail") then
-            return (Array(tail l))
-            else if (id == "equals") then
-            myEquals env l params
-            else 
-            error $ "Sorry, this function is not defined"
+                    if (id == "concat") then
+                        myConcat env l params
+                    else if (id == "len") then
+                        return (myLength 0 l)
+                    else if (id == "head") then
+                        return (head l)
+                    else if (id == "tail") then
+                        return (Array(tail l))
+                    else if (id == "equals") then
+                        myEquals env l params
+                    else 
+                        error $ "Sorry, this function is not defined"
         _ -> do
             evaluedName <- evalExpr env func
             case evaluedName of
@@ -144,42 +144,44 @@ evalStmt env (BlockStmt (x:xs) ) = do
     if (v1 == (Break) || v1 == (Continue)) then
         return v1
     else
-    case v1 of
-    Return r1 -> return (Return r1)
-    _ -> evalStmt env (BlockStmt xs)
+        case v1 of
+            Return r1 -> return (Return r1)
+            _ -> evalStmt env (BlockStmt xs)
 evalStmt env (IfStmt cond c1 c2) = do
     v1 <- evalExpr env cond
     if (v1 == (Bool True)) then
-    evalStmt env c1
+        evalStmt env c1
     else if (v1 == (Bool False)) then
-    evalStmt env c2
-    else return Nil
+        evalStmt env c2
+    else 
+        return Nil
 evalStmt env (IfSingleStmt cond c1) = do
     v1 <- evalExpr env cond
     if (v1 == (Bool True)) then
-    evalStmt env c1
-    else return Nil
+        evalStmt env c1
+    else 
+        return Nil
 evalStmt env (WhileStmt cond c1) = do
     v1 <- evalExpr env cond
     if (v1 == (Bool True)) then do
-    v2 <- evalStmt env c1
-    if (v2 == (Break)) then
-        return Nil
-    else
-        case v2 of
-        Return r -> return (Return r)
-            _ -> evalStmt env (WhileStmt cond c1)
+        v2 <- evalStmt env c1
+        if (v2 == (Break)) then
+            return Nil
+        else
+            case v2 of
+                Return r -> return (Return r)
+                _ -> evalStmt env (WhileStmt cond c1)
     else 
-    return Nil              
+        return Nil              
 evalStmt env (DoWhileStmt c1 cond) = do
     v1 <- evalStmt env c1
     case v1 of
-    Break -> return Nil
-    Return r -> return (Return r)
-    _ -> do
-        v2 <- evalExpr env cond
-        if (v2 == (Bool True)) then
-                evalStmt env (DoWhileStmt c1 cond)
+        Break -> return Nil
+        Return r -> return (Return r)
+        _ -> do
+            v2 <- evalExpr env cond
+            if (v2 == (Bool True)) then
+                    evalStmt env (DoWhileStmt c1 cond)
             else 
                     return Nil
     
@@ -192,13 +194,13 @@ evalStmt env (ReturnStmt i) =
 evalStmt env (SwitchStmt expr []) = return Nil
 evalStmt env (SwitchStmt expr (x:xs)) = 
     case x of
-    (CaseClause expr1 c) -> do
-        v1 <- evalExpr env expr
-        v2 <- evalExpr env expr1
-        if (v1 == v2) then
-            evalStmt env (BlockStmt c)
-        else 
-        evalStmt env (SwitchStmt expr xs)
+        (CaseClause expr1 c) -> do
+            v1 <- evalExpr env expr
+            v2 <- evalExpr env expr1
+            if (v1 == v2) then
+                evalStmt env (BlockStmt c)
+            else 
+                evalStmt env (SwitchStmt expr xs)
         (CaseDefault c) -> evalStmt env (BlockStmt c)
 evalStmt env (ForStmt initExpression cond afterblock block) = do
     evalForInit env initExpression
