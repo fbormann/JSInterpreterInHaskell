@@ -280,7 +280,7 @@ stateLookup env var = ST $ \s ->
         Nothing -> (GlobalVar, s)
         Just v -> (v, s)
 
-scopeLookup :: StateT -> String -> Maybe Value
+scopeLookup :: [Map String Value] -> String -> Maybe Value
 scopeLookup [] _ = Nothing
 scopeLookup (x:xs) var =
     case Map.lookup var x of
