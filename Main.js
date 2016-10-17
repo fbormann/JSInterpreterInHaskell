@@ -1,30 +1,11 @@
-var x = 1, y = 10, w = 25, t = 0;
-var z = [ x , y, y];
-if (x < y){
-break;
-x = 100;
+vetor = [5,2,3,6,7,3,5,6,4,2,559,8,7,4,1,24,5,4,7,26,89];
+for(var i = 0;i<vetor.len();i = i+1){
+	for(var j = 0;j<vetor.lent();j = j+1){
+		if(vetor[i]<vetor[j]){
+			aux = vetor[i];
+			vetor[i] = vetor[j];
+			vetor[j] = aux;
+		}
+	}
 }
-
-while (x < 10){
-  y = y + 1;
-  x = x + 1;
-  break;
-  while (y < 20){
-  	x = 1000;
-  }
-}
-
-switch(w){
-case 20:
-	t = 200;
-	break;
-case 10:
-	t = 300;
-	break;
-default:
-	t = 400;
-  }
-
-t = -(w) + 100;
-
-return t;
+return vetor;
