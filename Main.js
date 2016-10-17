@@ -1,9 +1,18 @@
-var i = 6;
-function fibonacci(x){
-	if(x == 2 || x == 1){
-		return 1;
-	}else{
-		return fibonacci(x-1)+fibonacci(x-2);
-	}
+var x = 2;
+function teste(w){
+	return w + 3;
 }
-var w = fibonacci(i);
+var y = 0;
+switch(x){
+	case 2:
+		 y = 2;
+	break;
+	case 1:
+		 y = 1;
+	break;
+	default:
+		y = teste(x);
+	break;
+
+}
+
