@@ -1,6 +1,7 @@
 
 
 
+
 var items = [2,3,5,4,20,14,17,13];
 
 function mergeSort(items){
@@ -15,6 +16,7 @@ function mergeSort(items){
         right   = items.slice(middle);
 
     return merge(mergeSort(left), mergeSort(right));
+
 }
 
 items2 = mergeSort(items);
