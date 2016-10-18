@@ -35,24 +35,23 @@ evalExpr env (InfixExpr op expr1 expr2) = do
         -- we need this specification 
         -- in order to do recursive functions, for example
 -- AssignExpr
-evalExpr env (AssignExpr OpAssign var expr) = do
-    case var of
-        (LVar v) -> do -- x = something (x is already declared)
-            tent <- stateLookup env v
-            e <- evalExpr env expr
-            case tent of
-                GlobalVar -> createGlobalVar v e
-                _ -> setVar v e
+evalExpr env (AssignExpr OpAssign v expr) = do
+    atr <- evalExpr env expr
+    case v of
+        (LVar v1) -> do -- x = something (x is already declared)
+            var <- stateLookup env v1 
+            case var of
+                GlobalVar -> addGlobalVar v1 atr
+                _ -> updateVar v1 atr
         (LBracket expr1 expr2) -> do -- x[n] = something (x is already declared)
             case expr1 of
                 VarRef (Id id) -> do
                     evaluedI <- stateLookup env id
                     pos <- evalExpr env expr2
-                    e <- evalExpr env expr
                     case evaluedI of
                         Array l -> do
-                            newArray <- setVarArray (Array []) (Array l) pos e
-                            setVar id newArray
+                            newArray <- setVarArray (Array []) (Array l) pos atr
+                            updateVar id newArray
                         _ -> error $ "Sorry, this variable is not an array"
 -- ArrayLit
 evalExpr env (ArrayLit []) = return (Array [])
@@ -68,13 +67,9 @@ evalExpr env (DotRef expr (Id id)) = do
         Array l -> do
             case id of
                 "len" -> return (myLength 0 l)
-                "head" -> return (head l)
-                "tail" -> return (Array (tail l))
+                "head" -> return (myHead (Array l))
+                "tail" -> return (myTail (Array l))
                 _ -> error $ "Sorry, this function is not defined"
-
---newExpr
-
-
 -- BracketRef
 evalExpr env (BracketRef expr1 expr2) = do -- x[n]
     v1 <- evalExpr env expr1
@@ -101,14 +96,14 @@ evalExpr env (UnaryAssignExpr i (LVar v)) = do
         PostfixInc -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpAdd (VarRef (Id v)) (IntLit 1)))
         PostfixDec -> evalExpr env (AssignExpr OpAssign (LVar v) (InfixExpr OpSub (VarRef (Id v)) (IntLit 1)))
 -- check why this is not running ( ++ x[n] )
---evalExpr env (UnaryAssignExpr inc (LBracket expr1 expr2) ) = do
---    case expr1 of
---        VarRef (Id id) -> do
---            case inc of
---      PrefixInc -> evalExpr env (AssignExpr OpAssign (LBracket VarRef (Id id) expr2) (InfixExpr OpAdd (VarRef (Id id)) (IntLit 1)))
---      PrefixDec -> evalExpr env (AssignExpr OpAssign (LBracket VarRef (Id id) expr2) (InfixExpr OpSub (VarRef (Id id)) (IntLit 1)))
---      PostfixInc -> evalExpr env (AssignExpr OpAssign (LBracket VarRef (Id id) expr2) (InfixExpr OpAdd (VarRef (Id id)) (IntLit 1)))
---      PostfixDec -> evalExpr env (AssignExpr OpAssign (LBracket VarRef (Id id) expr2) (InfixExpr OpSub (VarRef (Id id)) (IntLit 1)))
+evalExpr env (UnaryAssignExpr inc (LBracket expr1 expr2) ) = do
+    case expr1 of
+        (VarRef (Id id)) -> do
+           case inc of
+            PrefixInc -> evalExpr env (AssignExpr OpAssign (LBracket (VarRef (Id id)) expr2) (InfixExpr OpAdd (VarRef (Id id)) (IntLit 1)))
+            PrefixDec -> evalExpr env (AssignExpr OpAssign (LBracket (VarRef (Id id)) expr2) (InfixExpr OpSub (VarRef (Id id)) (IntLit 1)))
+            PostfixInc -> evalExpr env (AssignExpr OpAssign (LBracket (VarRef (Id id)) expr2) (InfixExpr OpAdd (VarRef (Id id)) (IntLit 1)))
+            PostfixDec -> evalExpr env (AssignExpr OpAssign (LBracket (VarRef (Id id)) expr2) (InfixExpr OpSub (VarRef (Id id)) (IntLit 1)))
         
 -- CallExpr 
 evalExpr env (CallExpr func params) = do
@@ -122,9 +117,9 @@ evalExpr env (CallExpr func params) = do
                     else if (id == "len") then
                         return (myLength 0 l)
                     else if (id == "head") then
-                        return (head l)
+                        return (myHead (Array l) )
                     else if (id == "tail") then
-                        return (Array(tail l))
+                        return (myTail (Array l) )
                     else if (id == "equals") then
                         myEquals env l params
                     else 
@@ -157,14 +152,12 @@ evalStmt env (IfStmt cond c1 c2) = do
         evalStmt env c1
     else if (v1 == (Bool False)) then
         evalStmt env c2
-    else 
-        return Nil
+    else return Nil
 evalStmt env (IfSingleStmt cond c1) = do
     v1 <- evalExpr env cond
     if (v1 == (Bool True)) then
         evalStmt env c1
-    else 
-        return Nil
+    else return Nil
 evalStmt env (WhileStmt cond c1) = do
     v1 <- evalExpr env cond
     if (v1 == (Bool True)) then do
@@ -173,7 +166,7 @@ evalStmt env (WhileStmt cond c1) = do
             return Nil
         else
             case v2 of
-                Return r -> return (Return r)
+                Return r -> error $  "Return in the wrong place" --return is not allowed here
                 _ -> evalStmt env (WhileStmt cond c1)
     else 
         return Nil              
@@ -186,9 +179,9 @@ evalStmt env (DoWhileStmt c1 cond) = do
             v2 <- evalExpr env cond
             if (v2 == (Bool True)) then
                     evalStmt env (DoWhileStmt c1 cond)
-            else 
-                    return Nil
-    
+                else 
+                        return Nil
+        
 evalStmt env (ReturnStmt i) = 
     case i of
         Nothing -> return (Return Nil)
@@ -198,18 +191,28 @@ evalStmt env (ReturnStmt i) =
 evalStmt env (SwitchStmt expr []) = return Nil
 evalStmt env (SwitchStmt expr (x:xs)) = 
     case x of
-        (CaseClause expr1 c) -> do
-            v1 <- evalExpr env expr
-            v2 <- evalExpr env expr1
-            if (v1 == v2) then
-                evalStmt env (BlockStmt c)
-            else 
-                evalStmt env (SwitchStmt expr xs)
-        (CaseDefault c) -> evalStmt env (BlockStmt c)
+    (CaseClause expr1 c) -> do
+        v1 <- evalExpr env expr
+        v2 <- evalExpr env expr1
+        if (v1 == v2) then
+            evalStmt env (BlockStmt c)
+        else 
+            evalStmt env (SwitchStmt expr xs)
+    (CaseDefault c) -> evalStmt env (BlockStmt c)
 evalStmt env (ForStmt initExpression cond afterblock block) = do
     evalForInit env initExpression
     case cond of
-        Nothing -> return (Return Nil)
+        Nothing -> do
+            v1 <- evalStmt env block
+            case v1 of
+                Break -> return (Break)
+                (Return r) -> error $ "Return in the wrong place"
+                _ -> do
+                    case afterblock of
+                        Nothing -> return (Return Nil)
+                        (Just expr) -> do
+                            evalExpr env expr
+                            evalStmt env (ForStmt NoInit cond afterblock block)
         (Just  expr) -> do
             checkCond <- evalExpr env expr
             if (checkCond == (Bool True)) then do 
@@ -221,7 +224,7 @@ evalStmt env (ForStmt initExpression cond afterblock block) = do
                         evalStmt env (ForStmt NoInit cond afterblock block)
             else 
                 return Nil
-evalStmt env (FunctionStmt (Id name) args stmts) = createGlobalVar name (Function (Id name) args stmts)     
+evalStmt env (FunctionStmt (Id name) args stmts) = addGlobalVar name (Function (Id name) args stmts)        
 evalStmt env (BreakStmt i) = return Break
 evalStmt env (ContinueStmt i) = return Continue
 evalStmt env EmptyStmt = return Nil
@@ -256,13 +259,6 @@ infixOp env OpNEq  (Bool v1) (Bool v2) = return $ Bool $ v1 /= v2
 infixOp env OpNEq  (Int v1) (Int v2) = return $ Bool $ v1 /= v2
 infixOp env OpLAnd (Bool v1) (Bool v2) = return $ Bool $ v1 && v2
 infixOp env OpLOr  (Bool v1) (Bool v2) = return $ Bool $ v1 || v2
-infixOp env OpAdd  (String v1) (String v2) = return $ String $ v1 ++ v2
-infixOp env OpSub (String v1) (String v2) = return $ String $ "NaN"
-infixOp env OpMul (String v1) (String v2) = return $ String $ "NaN"
-infixOp env OpDiv (String v1) (String v2) = return $ String $ "NaN"
-infixOp env OpMul (Int v1) (String v2) = return $ String $ "NaN"
-infixOp env OpMul (String v1) (Int v2) = return $ String $ "NaN"
-
 
 prefixOp :: StateT-> PrefixOp -> Value -> StateTransformer Value
 prefixOp env PrefixLNot (Bool v) = return $ Bool $ not v
@@ -303,28 +299,26 @@ scopeLookup (x:xs) var =
 varDecl :: StateT -> VarDecl -> StateTransformer Value
 varDecl env (VarDecl (Id id) maybeExpr) = do
     case maybeExpr of
-        Nothing -> createLocalVar id Nil
+        Nothing -> addLocalVar id Nil
         (Just expr) -> do
             val <- evalExpr env expr
-            createLocalVar id val
+            addLocalVar id val
 
-setVar :: String -> Value -> StateTransformer Value
-setVar var val = ST $ \s -> (val, (searchAndUpdateVar var val s))
+updateVar :: String -> Value -> StateTransformer Value
+updateVar var val = ST $ \s -> (val, (updateAux var val s))
 
-searchAndUpdateVar :: String -> Value -> StateT -> StateT
-searchAndUpdateVar _ _ [] = error $ "Unreachable error"
-searchAndUpdateVar var val stt = case (Map.lookup var (head stt)) of
-        Nothing -> (head stt):(searchAndUpdateVar var val (tail stt))
+updateAux :: String -> Value -> StateT -> StateT
+updateAux _ _ [] = error $ "Variable not found"
+updateAux var val stt = case (Map.lookup var (head stt)) of
+        Nothing -> (head stt):(updateAux var val (tail stt))
         Just v -> (insert var val (head stt)):(tail stt)
 
-createGlobalVar :: String -> Value -> StateTransformer Value
-createGlobalVar var val = ST $ \s -> (val, createGlobalVarAux var val s)
+addGlobalVar :: String -> Value -> StateTransformer Value
+addGlobalVar var val = ST $ \s -> (val, addAux var val s)
  
-createGlobalVarAux :: String -> Value -> StateT -> StateT
-createGlobalVarAux var val (s:scopes) = 
-    if (scopes == []) 
-        then (insert var val s):[] 
-    else s:(createGlobalVarAux var val scopes)
+addAux :: String -> Value -> StateT -> StateT
+addAux var val (x:xs) | xs /= [] = x:(addAux var val xs)
+              | otherwise = (insert var val x):[]
 
 pushScope :: StateTransformer Value
 pushScope = ST $ \s -> (Nil, (Map.empty):s)
@@ -332,8 +326,8 @@ pushScope = ST $ \s -> (Nil, (Map.empty):s)
 popScope :: StateTransformer Value
 popScope = ST $ \s -> (Nil, (tail s))
 
-createLocalVar :: String -> Value -> StateTransformer Value
-createLocalVar var val = ST $ \s -> (val, (insert var val (head s)):(tail s))
+addLocalVar :: String -> Value -> StateTransformer Value
+addLocalVar var val = ST $ \s -> (val, (insert var val (head s)):(tail s))
 
 
 
@@ -344,24 +338,26 @@ evalArray env (x:xs) (Array l) = do
     evalArray env xs (Array (l++[v1]))
 
 myLength :: Int -> [Value] -> Value
-myLength x [] = Int x
-myLength x (b:bs) = myLength (x+1) bs
+myLength total [] = Int total
+myLength total (x:xs) = myLength (total+1) xs
 
-myHead :: [Value] -> Value
-myHead [] = Nil
-myHead (x:xs) = x
+myHead :: Value -> Value
+myHead x = case x of
+    (Array (x:xs) ) -> x
+    _ -> Nil 
 
-myTail :: [Value] -> [Value]
-myTail [] = []
-myTail (x:xs) = xs
+myTail :: Value -> Value
+myTail x = case x of
+    (Array (x:xs)) -> (Array xs)
+    _-> Nil
 
 myConcat :: StateT -> [Value] -> [Expression] -> StateTransformer Value
 myConcat env l [] = return (Array l)
-myConcat env l (param:params) = do
-    v1 <- evalExpr env param
+myConcat env l (x:xs) = do
+    v1 <- evalExpr env x
     case v1 of
-        (Array l2) -> myConcat env (l ++ l2) params
-        v -> myConcat env (l ++ [v]) params
+        (Array l1) ->myConcat env (l ++ l1) xs
+        v -> myConcat env (l ++ [v]) xs
 
 evalNthElement :: StateT -> Value -> Value -> StateTransformer Value
 evalNthElement env (Array []) (Int n) = return Nil
@@ -382,25 +378,27 @@ evalArgs :: StateT-> [Id]-> [Expression]-> StateTransformer Value
 evalArgs env [] [] = return Nil
 evalArgs env ((Id id):ids) (param:params) =  do
         v <- evalExpr env param
-        createLocalVar id v
+        addLocalVar id v
         evalArgs env ids params
 evalArgs env _ _ = error $ "Inconsistency between input and arguments"
 
 myEquals :: StateT -> [Value] -> [Expression] -> StateTransformer Value
 myEquals env l [] = return (Bool True)
-myEquals env l (expr:exprs) = do
-    evaluedExpr <- evalExpr env expr
+myEquals env l (x:xs) = do
+    evaluedExpr <- evalExpr env x
     case evaluedExpr of
         (Array l2) -> do
-            if (myEqualsArray l l2)
-                then myEquals env l exprs
-            else return (Bool False)
+            if (myEqualsArray l l2) then 
+                myEquals env l xs
+            else 
+                return (Bool False)
 
 myEqualsArray :: [Value] -> [Value] -> Bool
 myEqualsArray [] [] = True
 myEqualsArray x [] = False
 myEqualsArray [] y = False
-myEqualsArray (x:xs) (y:ys) = (x == y) && (myEqualsArray xs ys)
+myEqualsArray (x:xs) (y:ys) | x == y = myEqualsArray (xs) (ys)
+                | otherwise = False
 
 setVarArray :: Value -> Value -> Value -> Value -> StateTransformer Value
 setVarArray (Array x) (Array []) (Int 0) e = return (Array (x ++ [e]))
@@ -433,9 +431,9 @@ instance Applicative StateTransformer where
 --
 
 showResult :: (Value, StateT) -> String
-showResult (val, []) = ""
-showResult (val, (s:scopes)) =
-    show val ++ "\n" ++ show (toList $ union s (Map.empty)) ++ "\n" ++ showResult (val, scopes)
+showResult (v, []) = ""
+showResult (v, (x:xs)) | xs /= [] = show v ++ "\n" ++ show (toList $ union x (Map.empty)) ++ "\n" ++ showResult (v, xs)
+               | otherwise = show v ++ "\n" ++ show (toList $ union x (Map.empty)) ++ "\n"
 
 getResult :: StateTransformer Value -> (Value, StateT)
 getResult (ST f) = f [Map.empty]
