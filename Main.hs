@@ -71,6 +71,10 @@ evalExpr env (DotRef expr (Id id)) = do
                 "head" -> return (head l)
                 "tail" -> return (Array (tail l))
                 _ -> error $ "Sorry, this function is not defined"
+
+--newExpr
+
+
 -- BracketRef
 evalExpr env (BracketRef expr1 expr2) = do -- x[n]
     v1 <- evalExpr env expr1
@@ -252,6 +256,13 @@ infixOp env OpNEq  (Bool v1) (Bool v2) = return $ Bool $ v1 /= v2
 infixOp env OpNEq  (Int v1) (Int v2) = return $ Bool $ v1 /= v2
 infixOp env OpLAnd (Bool v1) (Bool v2) = return $ Bool $ v1 && v2
 infixOp env OpLOr  (Bool v1) (Bool v2) = return $ Bool $ v1 || v2
+infixOp env OpAdd  (String v1) (String v2) = return $ String $ v1 ++ v2
+infixOp env OpSub (String v1) (String v2) = return $ String $ "NaN"
+infixOp env OpMul (String v1) (String v2) = return $ String $ "NaN"
+infixOp env OpDiv (String v1) (String v2) = return $ String $ "NaN"
+infixOp env OpMul (Int v1) (String v2) = return $ String $ "NaN"
+infixOp env OpMul (String v1) (Int v2) = return $ String $ "NaN"
+
 
 prefixOp :: StateT-> PrefixOp -> Value -> StateTransformer Value
 prefixOp env PrefixLNot (Bool v) = return $ Bool $ not v

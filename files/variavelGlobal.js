@@ -6,3 +6,14 @@ function test(x){
 }
 
 var w = test(x);
+
+
+function multiplyBy(array, number){
+	for(var i = 0; i < array.len();i++){
+		array[i] = array[i]*number;
+	}
+	return array;
+}
+
+var s = [12,20,30];
+s = multiplyBy(s, x);
