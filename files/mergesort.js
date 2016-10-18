@@ -1,48 +1,65 @@
-function merge(left, right)
-{
+function len(array) {
+    
+    var tam = 0;
+    var temp = array;
+    if(array.equals([])){
+        return 0;
+    }
+    while (!temp.tail().equals([])){
+        tam = tam + 1;
+        temp = temp.tail();
+    }
+    return tam + 1;
+}
+function esquerda(array){
+    tamanho = len(array) / 2;
+    temp = array;
+    var temp2 = [];
+    while (tamanho > 0){
+        temp2 = temp2.concat(temp.head());
+        temp = temp.tail();
+        tamanho--;
+    }
+    return temp2;
+}
+function direita(array){
+    tamanho = len(array) / 2;
+    temp = array;
+    while (tamanho > 0){
+        temp = temp.tail();
+        tamanho--;
+    }
+    return temp;
+}
+function merge(x, y){
     var temp = [];
-    while(true)
-    {
-        if(left.len() == 0 && right.len() == 0) break;
+    while(true){
+        if(len(x) == 0 && len(y) == 0) break;
         
-        if(left.len() == 0)
-        {
-            temp = temp.concat(right);
+        if(len(x) == 0){
+            temp = temp.concat(y);
             break;
         }
-        
-        if(right.len() == 0)
-        {
-            temp = temp.concat(left);
+        if(len(y) == 0){
+            temp = temp.concat(x);
             break;
         }
-        
-        if(left.head() < right.head())
-        {
-            temp = temp.concat(left.head());
-            left = left.tail();
-        }
-        else 
-        {
-            temp = temp.concat(right.head());
-            right = right.tail();
+        if(x.head < y.head){
+            temp = temp.concat(x.head);
+            x = x.tail;
+        } else {
+            temp = temp.concat(y.head);
+            y = y.tail;
         }
     }
     
     return temp;
 }
-
-function mergesort(x, low, high)
-{
-    if(low == high) return [x[low]]; //caso não façamos assim, ele irá retornar um inteiro
-
-    var half = (low + high) / 2;
-    var left = mergesort(x, low, half);
-    var right = mergesort(x, half + 1, high);
-
+function mergesort(y){
+    if(len(y) <= 1) return [y[0]];
+    var left = mergesort(direita(y));
+    var right = mergesort(esquerda(y));
     return merge(left, right);
 }
-
-var x = [2, 1, 4, 3, 9, 5, 0, 7, 8];
-//var x = [1];
-mergesort(x, 0, x.len()-1);
+var x = [8,7,6,5,4,3,2,1,0];
+return mergesort(x);

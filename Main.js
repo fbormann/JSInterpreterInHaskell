@@ -1,4 +1,6 @@
-var texto = "bblabla";
-var txt2 = "blublu";
-var t3 = texto + txt2;
-var t4 = texto - txt2;
+function w(x){
+	this.y = x;
+	return this.y;
+}
+
+w("teste");
