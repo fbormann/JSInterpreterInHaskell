@@ -1,26 +1,48 @@
-var items = [2,3,5,4,20,14,17,13];
-
-function slice(elements, begin, end){
-	var elements2 = [];
-	for(var i = begin; i < end; i++){
-		elements2[i-begin] = elements[i];
-	}
-	return elements2;
-}
-
-function mergeSort(items){
-
-    // Terminal case: 0 or 1 item arrays don't need sorting
-    if (items.len() < 2) {
-        return items;
+function merge(left, right)
+{
+    var temp = [];
+    while(true)
+    {
+        if(left.len() == 0 && right.len() == 0) break;
+        
+        if(left.len() == 0)
+        {
+            temp = temp.concat(right);
+            break;
+        }
+        
+        if(right.len() == 0)
+        {
+            temp = temp.concat(left);
+            break;
+        }
+        
+        if(left.head() < right.head())
+        {
+            temp = temp.concat(left.head());
+            left = left.tail();
+        }
+        else 
+        {
+            temp = temp.concat(right.head());
+            right = right.tail();
+        }
     }
-
-    var middle = items.len() / 2,
-        left    = items.slice(0, middle),
-        right   = items.slice(middle);
-
-    return merge(mergeSort(left), mergeSort(right));
-
+    
+    return temp;
 }
 
-items2 = mergeSort(items);
+function mergesort(x, low, high)
+{
+    if(low == high) return [x[low]]; //caso não façamos assim, ele irá retornar um inteiro
+
+    var half = (low + high) / 2;
+    var left = mergesort(x, low, half);
+    var right = mergesort(x, half + 1, high);
+
+    return merge(left, right);
+}
+
+var x = [2, 1, 4, 3, 9, 5, 0, 7, 8];
+//var x = [1];
+mergesort(x, 0, x.len()-1);
